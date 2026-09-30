@@ -198,18 +198,28 @@ exports.getOrders = async (req, res) => {
              Your Admin table uses:
              order.totalAmount
           =============================================== */
+              totalAmount:
+                Number(
+                  row.item_total_amount ||
+                  0
+                ),
 
-          totalAmount:
-            Number(
-              row.order_total_amount ||
-              0
-            ),
+              total_amount:
+                Number(
+                  row.item_total_amount ||
+                  0
+                ),
+          // totalAmount:
+          //   Number(
+          //     row.order_total_amount ||
+          //     0
+          //   ),
 
-          total_amount:
-            Number(
-              row.order_total_amount ||
-              0
-            ),
+          // total_amount:
+          //   Number(
+          //     row.order_total_amount ||
+          //     0
+          //   ),
 
 
           /* ===============================================
