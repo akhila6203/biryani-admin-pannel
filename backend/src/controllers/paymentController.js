@@ -72,6 +72,10 @@ exports.createPaymentOrder = async (req, res) => {
         ""
       ).trim();
 
+      const finalLocation =
+  String(
+    req.body.location || ""
+  ).trim();
 
     /* -----------------------------------------------------
        VALIDATION
@@ -103,7 +107,23 @@ exports.createPaymentOrder = async (req, res) => {
       });
     }
 
+const allowedLocations = [
+  "Main campus",
+  "Manikonda campus",
+];
 
+
+if (
+  !allowedLocations.includes(
+    finalLocation
+  )
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Please select a valid location.",
+  });
+}
     /* -----------------------------------------------------
        GET DATABASE CONNECTION
     ----------------------------------------------------- */
@@ -316,15 +336,17 @@ exports.createPaymentOrder = async (req, res) => {
         (
           customer_name,
           mobile,
+          location,
           total_amount,
           payment_method,
           payment_status
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?)
       `,
       [
         finalCustomerName,
         finalMobile,
+        finalLocation,
         finalTotal,
         "Razorpay",
         "pending",
@@ -400,6 +422,8 @@ exports.createPaymentOrder = async (req, res) => {
 
           mobile:
             finalMobile,
+            location:
+    finalLocation,
         },
       });
 
@@ -672,6 +696,7 @@ exports.verifyPayment = async (req, res) => {
           id,
           customer_name,
           mobile,
+            location,
           total_amount,
           payment_method,
           payment_status,
@@ -757,6 +782,8 @@ exports.verifyPayment = async (req, res) => {
 
           mobile:
             order.mobile,
+
+          location: order.location,
 
           total_amount:
             Number(
@@ -944,6 +971,8 @@ exports.verifyPayment = async (req, res) => {
 
         mobile:
           order.mobile,
+        
+        location: order.location,
 
         total_amount:
           Number(

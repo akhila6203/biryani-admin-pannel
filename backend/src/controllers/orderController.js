@@ -17,6 +17,7 @@ exports.getOrders = async (req, res) => {
           id,
           customer_name,
           mobile,
+          location,
           total_amount,
           payment_status,
           razorpay_order_id,
@@ -69,6 +70,7 @@ exports.getOrders = async (req, res) => {
           order_id,
           menu_item_id,
           item_name,
+          portion_type,
           quantity,
           unit_amount,
           total_amount,
@@ -136,6 +138,10 @@ exports.getOrders = async (req, res) => {
 
           item_name:
             item.item_name,
+          
+            size: item.portion_type,
+portion_type: item.portion_type,
+
 
           quantity:
             Number(
@@ -205,16 +211,26 @@ exports.getOrders = async (req, res) => {
            Chicken Biryani-1, Mutton Biryani-3
         ================================================= */
 
+        // const orderItemsText =
+        //   orderItems
+        //     .map((item) => {
+
+        //       return (
+        //         `${item.itemName}-${item.quantity}`
+        //       );
+
+        //     })
+        //     .join(", ");
         const orderItemsText =
-          orderItems
-            .map((item) => {
+  orderItems
+    .map((item) => {
+      const size = item.size
+        ? ` (${item.size})`
+        : "";
 
-              return (
-                `${item.itemName}-${item.quantity}`
-              );
-
-            })
-            .join(", ");
+      return `${item.itemName}${size}-${item.quantity}`;
+    })
+    .join(", ");
 
 
         return {
@@ -249,7 +265,7 @@ exports.getOrders = async (req, res) => {
           mobile:
             order.mobile,
 
-
+          location: order.location,
           /* ===============================================
              ORDER ITEMS
 
@@ -461,6 +477,7 @@ exports.getOrderById = async (
             id,
             customer_name,
             mobile,
+            location,
             total_amount,
             payment_method,
             payment_status,
@@ -516,6 +533,7 @@ exports.getOrderById = async (
             id,
             menu_item_id,
             item_name,
+            portion_type,
             quantity,
             unit_amount,
             total_amount,
@@ -555,6 +573,8 @@ exports.getOrderById = async (
 
           item_name:
             item.item_name,
+          size: item.portion_type,
+portion_type: item.portion_type,
 
           quantity:
             Number(
@@ -602,13 +622,22 @@ exports.getOrderById = async (
        Chicken Biryani-1, Mutton Biryani-3
     ===================================================== */
 
-    const orderItemsText =
-      formattedItems
-        .map(
-          (item) =>
-            `${item.itemName}-${item.quantity}`
-        )
-        .join(", ");
+    // const orderItemsText =
+    //   formattedItems
+    //     .map(
+    //       (item) =>
+    //         `${item.itemName}-${item.quantity}`
+    //     )
+    //     .join(", ");
+    const orderItemsText = formattedItems
+  .map((item) => {
+    const size = item.size
+      ? ` (${item.size})`
+      : "";
+
+    return `${item.itemName}${size}-${item.quantity}`;
+  })
+  .join(", ");
 
 
     /* =====================================================
@@ -653,7 +682,7 @@ exports.getOrderById = async (
           mobile:
             order.mobile,
 
-
+          location: order.location,
           /* =============================================
              COMPLETE ORDER TOTAL
           ============================================= */

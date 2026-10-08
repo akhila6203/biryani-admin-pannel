@@ -225,3 +225,11 @@ CREATE TABLE IF NOT EXISTS cart_items (
     INDEX idx_cart_item_cart (cart_id),
     INDEX idx_cart_item_menu (menu_item_id)
 );
+
+
+
+
+USE biryani_db;
+
+ALTER TABLE orders
+ADD COLUMN location VARCHAR(100) NULL AFTER mobile;

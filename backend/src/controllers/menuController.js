@@ -9,11 +9,13 @@ const formatMenuItem = (item) => {
   return {
     id: item.id,
 
-    name:
-      item.name,
+    name: item.name,
 
-    amount:
-      Number(item.amount),
+    // Database column is still portion_type.
+    // Frontend receives it as size.
+    size: item.portion_type || "",
+
+    amount: Number(item.amount),
 
     created_at:
       item.created_at || null,
@@ -26,27 +28,22 @@ const formatMenuItem = (item) => {
 
 /* =========================================
    VALIDATE MENU INPUT
-
-   Portion removed.
-   Only:
-   - name
-   - amount
 ========================================= */
 
 const validateMenuInput = (
   name,
+  size,
   amount
 ) => {
   const menuName =
     String(name || "").trim();
 
+  const menuSize =
+    String(size || "").trim();
+
   const numericAmount =
     Number(amount);
 
-
-  /* =====================================
-     MENU NAME VALIDATION
-  ===================================== */
 
   if (!menuName) {
     return {
@@ -56,9 +53,21 @@ const validateMenuInput = (
   }
 
 
-  /* =====================================
-     AMOUNT VALIDATION
-  ===================================== */
+  if (!menuSize) {
+    return {
+      error:
+        "Size is required.",
+    };
+  }
+
+
+  if (menuSize.length > 50) {
+    return {
+      error:
+        "Size must be 50 characters or less.",
+    };
+  }
+
 
   if (
     !Number.isFinite(
@@ -75,6 +84,7 @@ const validateMenuInput = (
 
   return {
     menuName,
+    menuSize,
     numericAmount,
   };
 };
@@ -82,18 +92,19 @@ const validateMenuInput = (
 
 /* =========================================
    PUBLIC MENU
-
    GET /api/menu
 ========================================= */
 
 const getPublicMenu =
   async (req, res, next) => {
     try {
+
       const [rows] =
         await pool.query(`
           SELECT
             id,
             name,
+            portion_type,
             amount
           FROM menu_items
           WHERE is_active = 1
@@ -113,6 +124,7 @@ const getPublicMenu =
         });
 
     } catch (error) {
+
       console.error(
         "GET PUBLIC MENU ERROR:",
         error
@@ -125,18 +137,19 @@ const getPublicMenu =
 
 /* =========================================
    ADMIN MENU
-
    GET /api/menu/admin
 ========================================= */
 
 const getAdminMenu =
   async (req, res, next) => {
     try {
+
       const [rows] =
         await pool.query(`
           SELECT
             id,
             name,
+            portion_type,
             amount,
             created_at,
             updated_at
@@ -158,6 +171,7 @@ const getAdminMenu =
         });
 
     } catch (error) {
+
       console.error(
         "GET ADMIN MENU ERROR:",
         error
@@ -169,33 +183,44 @@ const getAdminMenu =
 
 
 /* =========================================
-   GET PORTIONS
+   OLD PORTIONS ROUTE
 
-   Portion functionality is no longer used.
-
-   We keep this controller function only
-   because your existing menu route may still
-   contain /api/menu/portions.
-
-   This prevents existing route code from
-   breaking.
-
-   GET /api/menu/portions
+   Kept so existing menuRoutes.js
+   does not break.
 ========================================= */
 
 const getPortions =
   async (req, res, next) => {
     try {
+
+      const [rows] =
+        await pool.query(`
+          SELECT DISTINCT portion_type
+          FROM menu_items
+          WHERE
+            is_active = 1
+            AND portion_type IS NOT NULL
+            AND TRIM(portion_type) <> ''
+          ORDER BY portion_type ASC
+        `);
+
+
       return res
         .status(200)
         .json({
           success: true,
-          data: [],
+
+          data:
+            rows.map(
+              (row) =>
+                row.portion_type
+            ),
         });
 
     } catch (error) {
+
       console.error(
-        "GET PORTIONS ERROR:",
+        "GET SIZES ERROR:",
         error
       );
 
@@ -206,32 +231,23 @@ const getPortions =
 
 /* =========================================
    CREATE MENU
-
-   POST /api/menu
-
-   Request:
-   {
-     "name": "Chicken Biryani",
-     "amount": 400
-   }
 ========================================= */
 
 const createMenu =
   async (req, res, next) => {
     try {
+
       const {
         name,
+        size,
         amount,
       } = req.body;
 
 
-      /* =====================================
-         VALIDATE
-      ===================================== */
-
       const validation =
         validateMenuInput(
           name,
+          size,
           amount
         );
 
@@ -241,7 +257,6 @@ const createMenu =
           .status(400)
           .json({
             success: false,
-
             message:
               validation.error,
           });
@@ -250,19 +265,10 @@ const createMenu =
 
       const {
         menuName,
+        menuSize,
         numericAmount,
       } = validation;
 
-
-      /* =====================================
-         INSERT MENU
-
-         portion_type kept as empty string
-         internally for compatibility with
-         existing database structure.
-
-         Portion is NOT required from frontend.
-      ===================================== */
 
       const [result] =
         await pool.query(
@@ -278,15 +284,11 @@ const createMenu =
           `,
           [
             menuName,
-            "",
+            menuSize,
             numericAmount,
           ]
         );
 
-
-      /* =====================================
-         GET CREATED MENU
-      ===================================== */
 
       const [rows] =
         await pool.query(
@@ -294,6 +296,7 @@ const createMenu =
             SELECT
               id,
               name,
+              portion_type,
               amount,
               created_at,
               updated_at
@@ -322,6 +325,7 @@ const createMenu =
         });
 
     } catch (error) {
+
       console.error(
         "CREATE MENU ERROR:",
         error
@@ -334,28 +338,17 @@ const createMenu =
 
 /* =========================================
    UPDATE MENU
-
-   PUT /api/menu/:id
-
-   Request:
-   {
-     "name": "Chicken Biryani",
-     "amount": 450
-   }
 ========================================= */
 
 const updateMenu =
   async (req, res, next) => {
     try {
+
       const id =
         Number(
           req.params.id
         );
 
-
-      /* =====================================
-         VALIDATE MENU ID
-      ===================================== */
 
       if (
         !Number.isInteger(id) ||
@@ -365,7 +358,6 @@ const updateMenu =
           .status(400)
           .json({
             success: false,
-
             message:
               "Invalid menu id.",
           });
@@ -374,17 +366,15 @@ const updateMenu =
 
       const {
         name,
+        size,
         amount,
       } = req.body;
 
 
-      /* =====================================
-         VALIDATE MENU DATA
-      ===================================== */
-
       const validation =
         validateMenuInput(
           name,
+          size,
           amount
         );
 
@@ -394,7 +384,6 @@ const updateMenu =
           .status(400)
           .json({
             success: false,
-
             message:
               validation.error,
           });
@@ -403,19 +392,10 @@ const updateMenu =
 
       const {
         menuName,
+        menuSize,
         numericAmount,
       } = validation;
 
-
-      /* =====================================
-         UPDATE MENU
-
-         Do NOT update portion_type.
-
-         This keeps old database records safe
-         while Portion is no longer used by
-         the application.
-      ===================================== */
 
       const [result] =
         await pool.query(
@@ -423,6 +403,7 @@ const updateMenu =
             UPDATE menu_items
             SET
               name = ?,
+              portion_type = ?,
               amount = ?
             WHERE
               id = ?
@@ -430,15 +411,12 @@ const updateMenu =
           `,
           [
             menuName,
+            menuSize,
             numericAmount,
             id,
           ]
         );
 
-
-      /* =====================================
-         NOT FOUND
-      ===================================== */
 
       if (
         result.affectedRows === 0
@@ -454,16 +432,13 @@ const updateMenu =
       }
 
 
-      /* =====================================
-         GET UPDATED MENU
-      ===================================== */
-
       const [rows] =
         await pool.query(
           `
             SELECT
               id,
               name,
+              portion_type,
               amount,
               created_at,
               updated_at
@@ -492,6 +467,7 @@ const updateMenu =
         });
 
     } catch (error) {
+
       console.error(
         "UPDATE MENU ERROR:",
         error
@@ -509,15 +485,12 @@ const updateMenu =
 const deleteMenu =
   async (req, res, next) => {
     try {
+
       const id =
         Number(
           req.params.id
         );
 
-
-      /* =====================================
-         VALIDATE MENU ID
-      ===================================== */
 
       if (
         !Number.isInteger(id) ||
@@ -534,12 +507,6 @@ const deleteMenu =
       }
 
 
-      /* =====================================
-         SOFT DELETE
-
-         Existing functionality unchanged.
-      ===================================== */
-
       const [result] =
         await pool.query(
           `
@@ -552,10 +519,6 @@ const deleteMenu =
           [id]
         );
 
-
-      /* =====================================
-         MENU NOT FOUND
-      ===================================== */
 
       if (
         result.affectedRows === 0
@@ -581,6 +544,7 @@ const deleteMenu =
         });
 
     } catch (error) {
+
       console.error(
         "DELETE MENU ERROR:",
         error
@@ -591,10 +555,6 @@ const deleteMenu =
   };
 
 
-/* =========================================
-   EXPORTS
-========================================= */
-
 module.exports = {
   getPublicMenu,
   getAdminMenu,
@@ -603,8 +563,6 @@ module.exports = {
   updateMenu,
   deleteMenu,
 };
-
-
 
 
 
@@ -624,9 +582,6 @@ module.exports = {
 //     name:
 //       item.name,
 
-//     portion:
-//       item.portion_type,
-
 //     amount:
 //       Number(item.amount),
 
@@ -641,22 +596,27 @@ module.exports = {
 
 // /* =========================================
 //    VALIDATE MENU INPUT
+
+//    Portion removed.
+//    Only:
+//    - name
+//    - amount
 // ========================================= */
 
 // const validateMenuInput = (
 //   name,
-//   portion,
 //   amount
 // ) => {
 //   const menuName =
 //     String(name || "").trim();
 
-//   const portionName =
-//     String(portion || "").trim();
-
 //   const numericAmount =
 //     Number(amount);
 
+
+//   /* =====================================
+//      MENU NAME VALIDATION
+//   ===================================== */
 
 //   if (!menuName) {
 //     return {
@@ -666,23 +626,9 @@ module.exports = {
 //   }
 
 
-//   if (!portionName) {
-//     return {
-//       error:
-//         "Portion is required.",
-//     };
-//   }
-
-
-//   if (
-//     portionName.length > 50
-//   ) {
-//     return {
-//       error:
-//         "Portion name is too long.",
-//     };
-//   }
-
+//   /* =====================================
+//      AMOUNT VALIDATION
+//   ===================================== */
 
 //   if (
 //     !Number.isFinite(
@@ -699,7 +645,6 @@ module.exports = {
 
 //   return {
 //     menuName,
-//     portionName,
 //     numericAmount,
 //   };
 // };
@@ -719,7 +664,6 @@ module.exports = {
 //           SELECT
 //             id,
 //             name,
-//             portion_type,
 //             amount
 //           FROM menu_items
 //           WHERE is_active = 1
@@ -763,7 +707,6 @@ module.exports = {
 //           SELECT
 //             id,
 //             name,
-//             portion_type,
 //             amount,
 //             created_at,
 //             updated_at
@@ -798,57 +741,26 @@ module.exports = {
 // /* =========================================
 //    GET PORTIONS
 
+//    Portion functionality is no longer used.
+
+//    We keep this controller function only
+//    because your existing menu route may still
+//    contain /api/menu/portions.
+
+//    This prevents existing route code from
+//    breaking.
+
 //    GET /api/menu/portions
 // ========================================= */
 
 // const getPortions =
 //   async (req, res, next) => {
 //     try {
-//       const [rows] =
-//         await pool.query(`
-//           SELECT DISTINCT
-//             portion_type
-//           FROM menu_items
-//           WHERE
-//             is_active = 1
-//             AND portion_type IS NOT NULL
-//             AND TRIM(portion_type) <> ''
-//           ORDER BY portion_type ASC
-//         `);
-
-
-//       const savedPortions =
-//         rows.map(
-//           (row) =>
-//             row.portion_type
-//         );
-
-
-//       /*
-//        * Default portions always
-//        * dropdown lo untayi.
-//        */
-
-//       const defaultPortions = [
-//         "Single",
-//         "Double",
-//         "Full",
-//       ];
-
-
-//       const portions = [
-//         ...new Set([
-//           ...defaultPortions,
-//           ...savedPortions,
-//         ]),
-//       ];
-
-
 //       return res
 //         .status(200)
 //         .json({
 //           success: true,
-//           data: portions,
+//           data: [],
 //         });
 
 //     } catch (error) {
@@ -866,6 +778,12 @@ module.exports = {
 //    CREATE MENU
 
 //    POST /api/menu
+
+//    Request:
+//    {
+//      "name": "Chicken Biryani",
+//      "amount": 400
+//    }
 // ========================================= */
 
 // const createMenu =
@@ -873,15 +791,17 @@ module.exports = {
 //     try {
 //       const {
 //         name,
-//         portion,
 //         amount,
 //       } = req.body;
 
 
+//       /* =====================================
+//          VALIDATE
+//       ===================================== */
+
 //       const validation =
 //         validateMenuInput(
 //           name,
-//           portion,
 //           amount
 //         );
 
@@ -891,6 +811,7 @@ module.exports = {
 //           .status(400)
 //           .json({
 //             success: false,
+
 //             message:
 //               validation.error,
 //           });
@@ -899,10 +820,19 @@ module.exports = {
 
 //       const {
 //         menuName,
-//         portionName,
 //         numericAmount,
 //       } = validation;
 
+
+//       /* =====================================
+//          INSERT MENU
+
+//          portion_type kept as empty string
+//          internally for compatibility with
+//          existing database structure.
+
+//          Portion is NOT required from frontend.
+//       ===================================== */
 
 //       const [result] =
 //         await pool.query(
@@ -918,11 +848,15 @@ module.exports = {
 //           `,
 //           [
 //             menuName,
-//             portionName,
+//             "",
 //             numericAmount,
 //           ]
 //         );
 
+
+//       /* =====================================
+//          GET CREATED MENU
+//       ===================================== */
 
 //       const [rows] =
 //         await pool.query(
@@ -930,7 +864,6 @@ module.exports = {
 //             SELECT
 //               id,
 //               name,
-//               portion_type,
 //               amount,
 //               created_at,
 //               updated_at
@@ -973,6 +906,12 @@ module.exports = {
 //    UPDATE MENU
 
 //    PUT /api/menu/:id
+
+//    Request:
+//    {
+//      "name": "Chicken Biryani",
+//      "amount": 450
+//    }
 // ========================================= */
 
 // const updateMenu =
@@ -984,6 +923,10 @@ module.exports = {
 //         );
 
 
+//       /* =====================================
+//          VALIDATE MENU ID
+//       ===================================== */
+
 //       if (
 //         !Number.isInteger(id) ||
 //         id <= 0
@@ -992,6 +935,7 @@ module.exports = {
 //           .status(400)
 //           .json({
 //             success: false,
+
 //             message:
 //               "Invalid menu id.",
 //           });
@@ -1000,15 +944,17 @@ module.exports = {
 
 //       const {
 //         name,
-//         portion,
 //         amount,
 //       } = req.body;
 
 
+//       /* =====================================
+//          VALIDATE MENU DATA
+//       ===================================== */
+
 //       const validation =
 //         validateMenuInput(
 //           name,
-//           portion,
 //           amount
 //         );
 
@@ -1018,6 +964,7 @@ module.exports = {
 //           .status(400)
 //           .json({
 //             success: false,
+
 //             message:
 //               validation.error,
 //           });
@@ -1026,10 +973,19 @@ module.exports = {
 
 //       const {
 //         menuName,
-//         portionName,
 //         numericAmount,
 //       } = validation;
 
+
+//       /* =====================================
+//          UPDATE MENU
+
+//          Do NOT update portion_type.
+
+//          This keeps old database records safe
+//          while Portion is no longer used by
+//          the application.
+//       ===================================== */
 
 //       const [result] =
 //         await pool.query(
@@ -1037,7 +993,6 @@ module.exports = {
 //             UPDATE menu_items
 //             SET
 //               name = ?,
-//               portion_type = ?,
 //               amount = ?
 //             WHERE
 //               id = ?
@@ -1045,12 +1000,15 @@ module.exports = {
 //           `,
 //           [
 //             menuName,
-//             portionName,
 //             numericAmount,
 //             id,
 //           ]
 //         );
 
+
+//       /* =====================================
+//          NOT FOUND
+//       ===================================== */
 
 //       if (
 //         result.affectedRows === 0
@@ -1059,11 +1017,16 @@ module.exports = {
 //           .status(404)
 //           .json({
 //             success: false,
+
 //             message:
 //               "Menu item not found.",
 //           });
 //       }
 
+
+//       /* =====================================
+//          GET UPDATED MENU
+//       ===================================== */
 
 //       const [rows] =
 //         await pool.query(
@@ -1071,7 +1034,6 @@ module.exports = {
 //             SELECT
 //               id,
 //               name,
-//               portion_type,
 //               amount,
 //               created_at,
 //               updated_at
@@ -1123,6 +1085,10 @@ module.exports = {
 //         );
 
 
+//       /* =====================================
+//          VALIDATE MENU ID
+//       ===================================== */
+
 //       if (
 //         !Number.isInteger(id) ||
 //         id <= 0
@@ -1131,11 +1097,18 @@ module.exports = {
 //           .status(400)
 //           .json({
 //             success: false,
+
 //             message:
 //               "Invalid menu id.",
 //           });
 //       }
 
+
+//       /* =====================================
+//          SOFT DELETE
+
+//          Existing functionality unchanged.
+//       ===================================== */
 
 //       const [result] =
 //         await pool.query(
@@ -1150,6 +1123,10 @@ module.exports = {
 //         );
 
 
+//       /* =====================================
+//          MENU NOT FOUND
+//       ===================================== */
+
 //       if (
 //         result.affectedRows === 0
 //       ) {
@@ -1157,6 +1134,7 @@ module.exports = {
 //           .status(404)
 //           .json({
 //             success: false,
+
 //             message:
 //               "Menu item not found.",
 //           });
@@ -1167,6 +1145,7 @@ module.exports = {
 //         .status(200)
 //         .json({
 //           success: true,
+
 //           message:
 //             "Menu deleted successfully.",
 //         });
@@ -1182,6 +1161,10 @@ module.exports = {
 //   };
 
 
+// /* =========================================
+//    EXPORTS
+// ========================================= */
+
 // module.exports = {
 //   getPublicMenu,
 //   getAdminMenu,
@@ -1190,3 +1173,8 @@ module.exports = {
 //   updateMenu,
 //   deleteMenu,
 // };
+
+
+
+
+

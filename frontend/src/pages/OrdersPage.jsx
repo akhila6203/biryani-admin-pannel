@@ -224,7 +224,11 @@ export default function OrdersPage() {
               mobile:
                 getMobile(order),
 
+              location: order?.location || "-",
+
               items: [],
+
+              sizes: [],
 
               totalAmount:
                 getOrderTotal(
@@ -245,6 +249,40 @@ export default function OrdersPage() {
             groupKey
           );
 
+          const addSize = (size) => {
+  const value = String(size || "").trim();
+
+  if (
+    value &&
+    !groupedOrder.sizes.includes(value)
+  ) {
+    groupedOrder.sizes.push(value);
+  }
+};
+
+const sizeItems = Array.isArray(order?.items)
+  ? order.items
+  : Array.isArray(order?.orderItems)
+    ? order.orderItems
+    : Array.isArray(order?.order_items)
+      ? order.order_items
+      : [];
+
+if (sizeItems.length > 0) {
+  sizeItems.forEach((item) => {
+    addSize(
+      item?.size ||
+      item?.portionType ||
+      item?.portion_type
+    );
+  });
+} else {
+  addSize(
+    order?.size ||
+    order?.portionType ||
+    order?.portion_type
+  );
+}
 
         /*
          * =====================================
@@ -275,6 +313,12 @@ export default function OrdersPage() {
             getMobile(order);
         }
 
+        if (
+  groupedOrder.location === "-" &&
+  order?.location
+) {
+  groupedOrder.location = order.location;
+}
 
         if (
           !groupedOrder.createdAt &&
@@ -490,11 +534,20 @@ export default function OrdersPage() {
         mobile:
           order.mobile,
 
+          location:
+  order.location,
+
+size:
+  order.sizes.length > 0
+    ? order.sizes.join(", ")
+    : "-",
+
         orderItems:
           uniqueItems.length > 0
             ? uniqueItems.join(", ")
             : "-",
 
+            
         totalAmount:
           Number(
             order.totalAmount ||
@@ -724,7 +777,8 @@ export default function OrdersPage() {
             Order ID
           */}
 
-          <table className="w-full min-w-[1050px] border-collapse">
+          {/* <table className="w-full min-w-[1050px] border-collapse"> */}
+          <table className="w-full min-w-[1350px] border-collapse">
 
             <thead>
 
@@ -750,6 +804,9 @@ export default function OrdersPage() {
                   Mobile
                 </th>
 
+                <th className="min-w-[170px] whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-[0.04em] text-slate-500">
+                  Location
+                </th>
 
                 {/* ORDER ITEM */}
 
@@ -757,6 +814,9 @@ export default function OrdersPage() {
                   Order Item
                 </th>
 
+{/* <th className="min-w-[120px] whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-[0.04em] text-slate-500">
+  Size
+</th> */}
 
                 {/* TOTAL AMOUNT */}
 
@@ -783,7 +843,7 @@ export default function OrdersPage() {
                 <tr>
 
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="px-5 py-16 text-center"
                   >
 
@@ -852,7 +912,11 @@ export default function OrdersPage() {
 
                       </td>
 
-
+<td className="whitespace-nowrap px-5 py-4">
+  <span className="text-sm text-slate-600">
+    {order.location}
+  </span>
+</td>
                       {/* =========================
                           ORDER ITEMS
 
@@ -872,6 +936,11 @@ export default function OrdersPage() {
 
                       </td>
 
+{/* <td className="px-5 py-4">
+  <span className="text-sm font-semibold text-slate-700">
+    {order.size}
+  </span>
+</td> */}
 
                       {/* =========================
                           TOTAL AMOUNT
@@ -916,7 +985,7 @@ export default function OrdersPage() {
                 <tr>
 
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="px-5 py-16 text-center"
                   >
 
