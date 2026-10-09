@@ -9,3 +9,14 @@ export const getOrdersApi = () => {
     "/orders"
   );
 };
+
+
+export const downloadOrdersPdfApi = async (orderIds) => {
+  return axiosClient.post(
+    "/orders/download-pdf",
+    { orderIds },
+    {
+      responseType: "blob",
+    }
+  );
+};
